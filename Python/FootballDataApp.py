@@ -13,10 +13,10 @@ fl = st.file_uploader(":file_folder: Upload a file", type=(["csv","txt","xlsx","
 if fl is not None:
     filename = fl.name
     st.write(filename)
-    df = pd.read_csv(fl, encoding="ISO-8859-1")
+    df = pd.read_csv(fl, encoding="UTF-8")
 else:
     os.chdir(r"C:\rojekti\Data")
-    df = pd.read_csv("results.csv", encoding="ISO-8859-1")
+    df = pd.read_csv("results.csv", encoding="UTF-8")
 
 #Päivämäärän valinta
 col1, col2 = st.columns((2))
@@ -25,9 +25,17 @@ try:
     df["date"] = pd.to_datetime(df["date"])
 except Exception as e:
     st.error(f"Error converting date column: {e}")
+
 #virhe tässä??
 startDate = df["date"].min()
 endDate = df["date"].max()
+
+
+print(startDate)
+print(endDate)
+print(df["date"][0])
+start=str(startDate)
+print(start[:10])
 
 with col1:
     date1 = st.date_input("Start Date", startDate)
@@ -40,14 +48,16 @@ try:
 except Exception as e:
     st.error(f"Error filtering data by date: {e}")
 
+# ja tässä??
 st.sidebar.header("Choose your filter: ")
 
-# ja tässä??
-home_team = st.sidebar.multiselect("Pick the Home Team", df["home_team"].unique())
+selected_tournament = st.sidebar.selectbox("Select Tournament:", df["tournament"].unique())
+tournament_df = df[df["tournament"] == selected_tournament]
 
-away_team = st.sidebar.multiselect("Pick the Away Team", df["away_team"].unique())
+home_team = st.sidebar.multiselect("Pick the Home Team:", df["home_team"].unique())
 
-#Home Team Away Team
+away_team = st.sidebar.multiselect("Pick the Away Team:", df["away_team"].unique())
+
 if not home_team and not away_team:
     filtered_df = df
 else:
@@ -66,41 +76,33 @@ tournament_summary = tournament_summary.sort_values(by="matches", ascending=True
 
 with col1:
     st.subheader("Matches by Home Team")
-    fig = px.bar(home_team_summary, x="matches", y="home_team", orientation="h", text="matches")
+    fig = px.bar(home_team_summary, x="matches", y="home_team", orientation="h", text="matches", labels={"home_team": "Home team"})
     st.plotly_chart(fig, use_container_width=True)
 
     st.subheader("Matches by Away Team")
-    fig = px.bar(away_team_summary, x="matches", y="away_team", orientation="h", text="matches")
+    fig = px.bar(away_team_summary, x="matches", y="away_team", orientation="h", text="matches", labels={"away_team": "Away team"})
     st.plotly_chart(fig, use_container_width=True)
 
 with col2:
     st.subheader("Matches by Tournament")
-    fig = px.bar(tournament_summary, x="matches", y="tournament", orientation="h", text="matches")
+    fig = px.bar(tournament_summary, x="matches", y="tournament", orientation="h", text="matches", labels={"tournament": "Tournament"})
+    fig.update_traces(texttemplate='%{text}', textposition='outside')
     st.plotly_chart(fig, use_container_width=True)
 
-# Sidebar filters
-selected_tournament = st.sidebar.selectbox("Select Tournament", df["tournament"].unique())
 
-
-# Filter the dataframe based on selected tournament
-tournament_df = df[df["tournament"] == selected_tournament]
-
-# Summary of matches by home team
 home_team_summary = tournament_df.groupby("home_team").size().reset_index(name="matches")
-home_team_summary = home_team_summary.sort_values(by="matches", ascending=False)
+home_team_summary = home_team_summary.sort_values(by="matches", ascending=True)
 
-# Summary of matches by away team
 away_team_summary = tournament_df.groupby("away_team").size().reset_index(name="matches")
-away_team_summary = away_team_summary.sort_values(by="matches", ascending=False)
+away_team_summary = away_team_summary.sort_values(by="matches", ascending=True)
 
-# Summary of tournaments
 tournament_summary = tournament_df.groupby("tournament").size().reset_index(name="matches")
-tournament_summary = tournament_summary.sort_values(by="matches", ascending=False)
+tournament_summary = tournament_summary.sort_values(by="matches", ascending=True)
 
-# Summary of goals scored by home team
+#goals scored by home team
 home_goals_summary = tournament_df.groupby("home_team")["home_score"].sum().reset_index(name="goals_scored")
 
-# Summary of goals scored by away team
+#goals scored by away team
 away_goals_summary = tournament_df.groupby("away_team")["away_score"].sum().reset_index(name="goals_scored")
 
 # Merge home and away goals summaries
@@ -116,28 +118,24 @@ goals_summary["total_goals_scored"] = goals_summary["goals_scored_x"] + goals_su
 tournament_goals_data = goals_summary
 
 with col1:
-    st.subheader("Matches by Home Team")
-    fig = px.bar(home_team_summary, x="matches", y="home_team", orientation="h", text="matches")
+    st.subheader("Total Matches in")
+    fig = px.bar(home_team_summary, x="matches", y="home_team", orientation="h", text="matches", labels={"home_team": "Team"},  title=f"Total Matches in {selected_tournament}")
     st.plotly_chart(fig, use_container_width=True)
 
-    st.subheader("Matches by Away Team")
-    fig = px.bar(away_team_summary, x="matches", y="away_team", orientation="h", text="matches")
-    st.plotly_chart(fig, use_container_width=True)
 
 with col2:
-    st.subheader("Matches by Tournament")
-    fig = px.bar(tournament_summary, x="matches", y="tournament", orientation="h", text="matches")
+    st.subheader("Total Matches Played in Selected Tournament")
+    fig = px.bar(tournament_summary, x="matches", y="tournament", orientation="h", text="matches", labels={"tournament": "Tournament"})
     st.plotly_chart(fig, use_container_width=True)
 
     st.subheader("Goals Scored in Tournament")
-    fig = px.bar(tournament_goals_data, x="home_team", y="total_goals_scored", text="total_goals_scored",
-                 labels={"total_goals_scored": "Total Goals Scored"},
+    fig = px.bar(tournament_goals_data, x="home_team", y="total_goals_scored",
+                 labels={"total_goals_scored": "Total Goals Score"},
                  title=f"Total Goals Scored by Each Team in {selected_tournament}",
                  color_discrete_sequence=['green'])
-    fig.update_traces(texttemplate='%{text}', textposition='outside')
+    fig.update_traces(texttemplate='', textposition='outside')
     st.plotly_chart(fig, use_container_width=True)
 
 
-# Download filtered data
 csv = filtered_df.to_csv(index=False).encode('utf-8')
-st.download_button('Download Filtered Data', data=csv, file_name="Filtered_Data.csv", mime="text/csv")
+st.download_button('Download Filtered Data', data=csv, file_name="Filtered_FootballData.csv", mime="text/csv")
